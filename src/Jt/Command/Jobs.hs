@@ -66,6 +66,9 @@ toLineSummary job = let
   startedTime' = show $ Job.startedTime job
   in [name', user', state', jobId', startedTime']
 
+headLine :: [String]
+headLine = ["Name", "User", "State", "JobId", "StartedTime"]
+
 printResults :: Config -> JobArgs -> IO ()
 printResults conf sargs = do
   let particularSet = showRM sargs || showHistory sargs
@@ -80,9 +83,10 @@ printResults conf sargs = do
   let queryParameters = QP.QueryParameters [userOption, limitOption]
   jobEither <- jobsWithOpts queryParameters server
   let jobs = failOnLeft jobEither
+  let summarizedJobs = fmap toLineSummary jobs
   let column = if (jobTabs sargs) then tabColumnarize else evenColumnarize
-  let shortFn = return . column . map toLineSummary
-  lineSummaries <- shortFn jobs
+  let shortFn = return . column
+  lineSummaries <- shortFn (headLine : summarizedJobs)
   sequence_ (map putStrLn lineSummaries)
 
 jobsAction :: Config -> JobArgs -> IO ()
