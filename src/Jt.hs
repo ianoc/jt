@@ -1,109 +1,127 @@
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Jt (
     -- * Modules
-    hello,
-    queryJt,
-    App(..)
+    readConfig,
+    jobs,
+    jobsWithOpts,
+    Command(..),
+    toAction,
+    failOnLeft,
+    cfgLookup,
+    err,
+    Config
     ) where
+import Data.Char(isSpace)
+import Data.List(concatMap)
+import Data.List.Split(splitOn)
+import Data.Text(unpack)
+import Data.Typeable
+import Options.Applicative
+import Options.Applicative.Types
+import Control.Monad.Except
+import Control.Monad.Reader
+import Filesystem.Path(parent)
+import qualified Turtle as T
+import Jt.Server
+import Jt.Job
+import qualified Data.Map.Strict as Map
+import Control.Exception
+{-
+  This is any information we need to make a query
+-}
+
+findServer :: T.FilePath -> IO (Maybe T.FilePath)
+findServer init = do
+  let here = init T.</> ".hadoop_cluster.conf"
+  gitDir <- T.testfile here
+  case gitDir of True  -> return (Just here)
+                 False -> let p = parent init
+                          in if p == init then return Nothing else findServer p
+
+findServerFromRoots :: [T.FilePath] -> IO (Maybe T.FilePath)
+findServerFromRoots [] = return Nothing
+findServerFromRoots (x : xs) = do
+        cfg <- findServer x
+        maybeCfg cfg
+        where maybeCfg (Just p) = return $ Just p
+              maybeCfg Nothing = findServerFromRoots xs
+
+lineToServer :: String -> Server
+lineToServer line = Server name' (AppUrl appUrl') (HistoryUrl historyUrl')
+    where [name', appUrl', historyUrl'] = splitOn " " line
+
+pathToServer :: T.FilePath -> IO [Server]
+pathToServer path = do
+    conf <- T.strict (T.input path)
+    let lines' = lines $ unpack conf :: [String]
+    return (fmap lineToServer lines')
 
 
+readConfig :: IO Config
+readConfig = do
+  initd <- T.pwd
+  home <- T.home
+  mdir <- findServerFromRoots [initd, home]
+  case mdir of (Just config_path) -> do
+                               s <- pathToServer config_path
+                               return $ cfgFromServerList s
+               Nothing -> fail ("\nYou must have a .hadoop_cluster.conf file in the parent of the pwd, or home directory,\n" <>
+                                "with a file at .hadoop_cluster.conf containing\n" <>
+                                "\"Name\" \"RM URL\" and \"History Url\" where these urls correspond to the RM and history urls of your clusters. One per line\n" <>
+                                "Example:\n" <>
+                                "tstA http://tstA.example.com:50030 http://tstA.example.com:8080\n")
+type Config = Map.Map String Server
 
-import Data.Aeson
-import qualified Data.Int as Ints
-import qualified Data.ByteString.Lazy.Char8 as BL
-import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Network.HTTP
-import Network.URI
-import Data.Char (intToDigit)
-import Network.HTTP
-import Network.URI
-import System.Environment (getArgs)
-import System.Exit (exitFailure)
-import System.IO (hPutStrLn, stderr)
-
-import Network.BufferType
-import Network.TCP
-import Network.Stream
-
-
-data Coord = Coord { x :: Double, y :: Double }
-             deriving (Show)
-
-$(deriveJSON defaultOptions ''Coord)
-
-hello :: BL.ByteString
-hello =
-  let
-    req = decode "{\"x\":3.0,\"y\":-1.0}" :: Maybe Coord
-    reply = Coord 123.4 20
-  in
-    (encode reply) `BL.append` (encode req)
+cfgLookup :: String -> Config -> Maybe Server
+cfgLookup k m = Map.lookup k m
 
 
-err :: String -> IO a
-err msg = do
-      hPutStrLn stderr msg
-      exitFailure
+data FailOnLeftException = FailOnLeftException String deriving (Show, Typeable)
+instance Exception FailOnLeftException
 
-get :: HStream ty => URI -> IO ty
-get uri = do
-    eresp <- simpleHTTP (request uri)
-    resp <- handleE (err . show) eresp
-    case rspCode resp of
-                      (2,0,0) -> return (rspBody resp)
-                      _ -> err (httpError resp)
-    where
-    showRspCode (a,b,c) = map intToDigit [a,b,c]
-    httpError resp = showRspCode (rspCode resp) ++ " " ++ rspReason resp
+failOnLeft :: (Show a) => Either a b -> b
+failOnLeft (Right e) = e
+failOnLeft (Left e)  = throw $ FailOnLeftException (show e)
 
-request :: HStream ty => URI -> HTTPRequest ty
-request uri = req
-  where
-   req = Request{ rqURI = uri
-                , rqMethod = GET
-        , rqHeaders = []
-        , rqBody = nullVal
-        }
-   nullVal = buf_empty bufferOps
+data ForcedException = ForcedException String deriving (Show, Typeable)
+instance Exception ForcedException
+
+err :: String -> a
+err msg = throw $ ForcedException msg
 
 
-handleE :: Monad m => (ConnError -> m a) -> Either ConnError a -> m a
-handleE h (Left e) = h e
-handleE _ (Right v) = return v
+cfgFromServerList :: [Server] -> Map.Map String Server
+cfgFromServerList servers = Map.fromList pairList
+  where pairList = fmap server2Pair servers
+        server2Pair srv = (serverName srv, srv)
 
-queryUrl :: String -> Maybe (IO BL.ByteString)
-queryUrl url = fmap get (parseURI url)
+{-
+ This is the struture we fit each subcommand into
+ -}
+data Command = forall a . Command {
+  commandName :: String,
+  commandDesc :: String,
+  commandParser :: Parser a,
+  commandAction :: Config -> a -> IO ()
+}
 
+{-
+  Prepares the subcommand
+-}
+subcom conf Command { commandName = name, commandDesc = desc, commandParser = parser, commandAction = act } = let
+  toAct = act conf
+  actionParser = helper <*> (toAct <$> parser)
+  in command name (info actionParser (progDesc desc <> header desc))
 
--- * http://hadoop-dw2-rm.smf1.twitter.com:50030/ws/v1/cluster/apps?states=running,failed,finished&limit=1
--- {"apps":{"app":[{"id":"application_1450140097802_31660","user":"exp","name":"[FCB00FFF555A40E4ACF310D18BCEC597/31CB2279F78540B9AF2A412CB4DD98F6] com.twitter.experiments.scalding.BatchPartialHomunculiClientEventLoginsJob/(2/3)","queue":"root.exp","state":"FINISHED","finalStatus":"SUCCEEDED","progress":100.0,"trackingUI":"History","trackingUrl":"http://hadoop-dw2-rm.smf1.twitter.com:50030/proxy/application_1450140097802_31660/jobhistory/job/job_1450140097802_31660","diagnostics":"","clusterId":1450140097802,"applicationType":"MAPREDUCE","applicationTags":"","totalMemory":9428795392,"reservedMemory":-1048576,"totalCores":3,"startedTime":1450211354124,"finishedTime":1450211702261,"elapsedTime":348137,"amContainerLogs":"http://smf1-bom-31-sr1.prod.twitter.com:50060/node/containerlogs/container_1450140097802_31660_01_000001/exp","amHostHttpAddress":"smf1-bom-31-sr1.prod.twitter.com:50060","allocatedMB":-1,"allocatedVCores":-1,"runningContainers":-1,"memorySeconds":0,"vcoreSeconds":0,"preemptedResourceMB":0,"preemptedResourceVCores":0,"numNonAMContainerPreempted":0,"numAMContainerPreempted":0}]}}[tw-ioconnell jt (master)]$ curl "http://hadoop-dw2-rm.smf1.twitter.com:50030/ws/v1/cluster/apps?states=running,failed,finished&limit=1"
-
-data Apps = Apps { app :: [App] } deriving (Show)
-data AppsResponse = AppsResponse { apps :: Apps } deriving (Show)
-data App = App { id :: String,
-    user :: String,
-    name :: String,
-    queue :: String,
-    state :: String,
-    startedTime :: Ints.Int64,
-    finishedTime :: Ints.Int64} deriving (Show)
-
-$(deriveJSON defaultOptions ''AppsResponse)
-$(deriveJSON defaultOptions ''Apps)
-$(deriveJSON defaultOptions ''App)
-
-extractApps :: Maybe (IO BL.ByteString) -> IO (Either String AppsResponse)
-extractApps (Just ioData) = fmap maybeToError $ fmap decode ioData
-                    where maybeToError (Just a) = Right a
-                          maybeToError  Nothing = Left "Unable to decode response"
-extractApps Nothing = return $ Left "Unable to parse URL"
-
-queryJt :: IO (Either String [App])
-queryJt = do
-    maybeApps <- extractApps $ queryUrl "http://hadoop-dw2-rm.smf1.twitter.com:50030/ws/v1/cluster/apps?states=running,failed,finished&limit=10"
-    let resApps = fmap app $ fmap apps maybeApps
-    return resApps
-          -- extract arg = decode arg :: Apps
-
+{-
+  Called by the main function to run one of the commands
+-}
+toAction :: Config -> [Command] -> IO ()
+toAction conf commands = let
+  subcommands = map (subcom conf) commands
+  subc = subparser (mconcat subcommands)
+  in do
+    action' <- execParser (info (helper <*> subc) (fullDesc <> header "jt: a command line job tracker tool"))
+    action'
