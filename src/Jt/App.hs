@@ -2,8 +2,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Jt.App (
-    -- fetchJobs,
-    -- Server(..)
     fetchJobs
     ) where
 
@@ -16,7 +14,6 @@ import qualified Jt.Job as Job
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Int as Ints
 import qualified Data.String.Utils as StringUtils
-import qualified Jt.Job as Job
 import Jt.QueryParameters
 
 data Apps = Apps { app :: [App] } deriving (Show, Generic)
@@ -34,7 +31,6 @@ instance FromJSON Apps
 instance FromJSON App
 
 
-data Server = HistoryServer { url :: String } | AppServer { url :: String } deriving (Show)
 
 applicationId :: App -> String
 applicationId (App appId _ _ _ _ _ _) = StringUtils.replace "job_" "application_" appId
@@ -54,10 +50,12 @@ extractApps ioData = do
   e <- ioData
   return (do
       bs <- e
-      maybeToError $ decode bs
+      maybeToError bs $ decode bs
       )
-  where maybeToError (Just a) = Right a
-        maybeToError  Nothing = Left "Unable to decode response"
+  where maybeToError _ (Just a) = Right a
+        maybeToError input Nothing
+              | (BL.unpack input) == "{\"apps\":null}" = Right $ AppsResponse (Apps [])
+              | otherwise = Left ("Unable to decode response:\n" ++ (BL.unpack input))
 
 fetchApps :: QueryParameters -> String -> IO (Either String [App])
 fetchApps params url = do
@@ -67,20 +65,21 @@ fetchApps params url = do
 
 
 appToJob :: App -> Job.Job
-appToJob app@(App _ cUser cName cQueue cState cStartedTime cFinishedTime) = Job.Job {
-    Job.name = cName,
+appToJob app'@(App _ cUser cName cQueue cState cStartedTime cFinishedTime) = Job.Job {
+    Job.name = nameM,
     Job.queue = cQueue,
     Job.user = cUser,
     Job.state = cState,
     Job.startedTime = cStartedTime,
     Job.finishedTime = cFinishedTime,
-    Job.flowId = Nothing,
-    Job.idxInFlow = Nothing,
-    Job.flowSize = Nothing,
-    Job.jobId = jobId app,
-    Job.applicationId = applicationId app,
+    Job.flowId = flowIdM,
+    Job.flowStepId = stepIdM,
+    Job.jobId = jobId app',
+    Job.applicationId = applicationId app',
     Job.jobUrl = ""
   }
+  where
+    (Job.JobNameElements flowIdM stepIdM nameM) = Job.parseName cName
 
 
 fetchJobs :: QueryParameters -> String -> IO (Either String [Job.Job])

@@ -31,9 +31,11 @@ Library
         , MissingH
         , turtle
         , containers >= 0.5.6
+        , attoparsec
     Exposed-Modules:
         Jt
       , Jt.App
+      , Jt.History
       , Jt.Net
       , Jt.Job
       , Jt.QueryParameters
@@ -41,6 +43,8 @@ Library
       , Jt.Command.All
       , Jt.Command.Show
       , Jt.Command.Jobs
+    Other-Modules:
+        Jt.Command.Utils
     GHC-Options: -O2 -Wall
     Default-Language: Haskell2010
 

@@ -13,10 +13,10 @@ import Network.HTTP.Client(HttpException)
 import qualified Jt.QueryParameters as QP
 
 queryUrlWith :: QP.QueryParameters -> String -> IO(Either String BL.ByteString)
-queryUrlWith params url = fmap handleErr runUrl
+queryUrlWith params' url = fmap handleErr runUrl
     where handleErr (Right a) = Right $ a ^. responseBody
           handleErr (Left e) = Left $ show (e :: HttpException)
-          options' = qParamsToOptions params
+          options' = qParamsToOptions params'
           runUrl = E.try (getWith options' url)
 
 qParamsToOptions :: QP.QueryParameters -> Options

@@ -11,6 +11,7 @@ import Jt.Server
 import Data.Maybe(fromMaybe)
 import Options.Applicative
 import qualified Jt.QueryParameters as QP
+import Jt.Command.Utils
 
 data JobArgs = JobArgs { jobUser :: Maybe String
                          , jobCluster :: String
@@ -38,25 +39,6 @@ jobParser = let
   in JobArgs <$> userP <*> clusterP <*> limitP <*> history <*> rm <*> tabs :: Parser JobArgs
 
 
-tabColumnarize :: [[String]] -> [String]
-tabColumnarize = map (intercalate "\t")
-
-{-| Pad the i^th string with enough space to make columns line up
-  >>> evenColumnarize [["yo", "man"], ["foo", "bar"], ["bazbaz", "baby"]]
-  ["yo     man ","foo    bar ","bazbaz baby"]
--}
-evenColumnarize :: [[String]] -> [String]
-evenColumnarize rows = let
-  columns = transpose rows
-  widths = map (\c -> maximum (map length c)) columns
-  padTo t str = let
-    sz = length str
-    pads = t - sz
-    tail = replicate pads ' '
-    in str ++ tail
-  resCol = map (\(w, c) -> map (padTo w) c) (zip widths columns)
-  in map (intercalate " ") (transpose resCol)
-
 toLineSummary :: Job.Job -> [String]
 toLineSummary job = let
   name' = Job.name job
@@ -77,12 +59,15 @@ printResults conf sargs = do
 
   let userOption = fromMaybe QP.EmptyParameter $ fmap (\u -> (QP.toQp "user" u)) (jobUser sargs)
   let limitOption = fromMaybe QP.EmptyParameter $ fmap (\u -> (QP.toQp "limit" $ show u)) (jobLimit sargs)
-
+  let maxLimit = fromMaybe 500 $ jobLimit sargs
   let maybeServer = cfgLookup (jobCluster sargs) conf
   let server = fromMaybe (err ("Unable to find cluster: " ++ (jobCluster sargs))) maybeServer
   let queryParameters = QP.QueryParameters [userOption, limitOption]
-  jobEither <- jobsWithOpts queryParameters server
-  let jobs = failOnLeft jobEither
+  historyJobs <- if historyInclude then Job.jobsWithOpts queryParameters $ historyUrl server else return $ Right []
+  rmJobs <- if rmInclude then Job.jobsWithOpts queryParameters $ appUrl server else return $ Right []
+  let jobEither = combineEither rmJobs historyJobs
+  let jobLimited = fmap (\jobs -> take maxLimit jobs) jobEither
+  let jobs = failOnLeft jobLimited
   let summarizedJobs = fmap toLineSummary jobs
   let column = if (jobTabs sargs) then tabColumnarize else evenColumnarize
   let shortFn = return . column
