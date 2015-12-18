@@ -55,7 +55,7 @@ Library
     Default-Language: Haskell2010
 
 
-executable jt-exe
+executable jt
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

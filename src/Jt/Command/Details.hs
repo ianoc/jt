@@ -13,8 +13,8 @@ import qualified Jt.DetailedJob as DetailedJob
 import qualified Jt.QueryParameters as QP
 
 data JobArgs = JobArgs {  jobCluster :: Maybe String
-                         , jobJobId :: String
                          , jobTabs :: Bool
+                         , jobJobId :: String
                          }
 
 detailsCommand :: Command
@@ -26,11 +26,11 @@ detailsCommand = Command { commandName = "details"
 jobParser :: Parser JobArgs
 jobParser = let
   clusterP = optional(strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from"))
-  jobP = strOption (long "job" <> short 'j' <> metavar "JOB" <> help "job to show info on")
+  jobP = argument str (metavar "JOB" <> help "job to show info on")
   tabs = switch (long "tabs" <>
            short 't' <>
            help "Use tabs for columns. Useful with sort -t $'\t' -k3 | column -t -n $'\t'")
-  in JobArgs <$> clusterP <*> jobP <*> tabs :: Parser JobArgs
+  in JobArgs <$> clusterP <*> tabs <*> jobP :: Parser JobArgs
 
 toLineSummary :: DetailedJob.DetailedJob -> IO [String]
 toLineSummary job = do
