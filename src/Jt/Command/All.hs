@@ -4,6 +4,7 @@ import Jt(Command)
 import Jt.Command.Show(showCommand)
 import Jt.Command.Jobs(jobsCommand)
 import Jt.Command.Details(detailsCommand)
+import Jt.Command.Counters(countersCommand)
 
 allCommands :: [Command]
-allCommands = [showCommand, jobsCommand, detailsCommand]
+allCommands = [showCommand, jobsCommand, detailsCommand, countersCommand]

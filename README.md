@@ -53,3 +53,17 @@ The details command is to zoom in and get some info on a job. The `-j` arg here 
 Name             User    State     JobId                   Mappers Reducers    StartedTime         FinishedTime
 MyFirstJob      myUser SUCCEEDED job_145023036xxx3_65370   205     2000     2015-12-17 17:02:39 2015-12-17 17:19:17
 ```
+
+
+## Counters
+```Usage: jt counters [-c|--cluster CLUSTER] [-t|--tabs] JOB [-g|--group GROUP]
+                   [-n|--name NAME]
+```
+
+Get the counters for a given job, filtering for group and/or name's of counters.
+
+```
+Group Name                   Name          Mapper Counter Value Reducer Counter Value Total Counter Value
+cascading.flow.SliceCounters Read_Duration 476924996            1823                  476926819
+```
+

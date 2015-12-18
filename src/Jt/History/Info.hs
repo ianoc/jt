@@ -13,7 +13,6 @@ import qualified Jt.DetailedJob as DetailedJob
 import qualified Jt.Job as Job
 import Jt.QueryParameters
 import Jt.Server(HistoryUrl(..))
-import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Int as Ints
 import qualified Jt.Net as Net
 import qualified Jt.Utils as Utils

@@ -45,13 +45,17 @@ Library
     Other-Modules:
         Jt.Command.Utils
       , Jt.App.Info
-      , Jt.DetailedJob
-      , Jt.Job
-      , Jt.Utils
       , Jt.App.Listing
+      , Jt.Command.Counters
       , Jt.Command.Details
+      , Jt.DetailedJob
+      , Jt.History.Counters
       , Jt.History.Info
       , Jt.History.Listing
+      , Jt.App.Counters
+      , Jt.Job
+      , Jt.Utils
+      , Jt.Counter
     GHC-Options: -O2 -Wall
     Default-Language: Haskell2010
 
