@@ -71,7 +71,7 @@ readConfig = do
                                 "tstA http://tstA.example.com:50030 http://tstA.example.com:8080\n")
 data Config = Config {
   configServers :: Map.Map String Server,
-  def :: Server
+  defaultServer :: Server
 }
 
 

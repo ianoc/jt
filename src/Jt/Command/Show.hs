@@ -7,6 +7,7 @@ import Jt
 import Options.Applicative
 import Text.Printf
 import Control.Monad
+import qualified Data.Map.Strict as Map
 
 data ShowArgs = ShowArgs { showHistory :: Bool
                          , showRM :: Bool
@@ -24,19 +25,37 @@ showParser = let
   rm = switch (long "resource-manager" <> help "resource-manager: show the rm url")
   in ShowArgs <$> history <*> rm
 
+printServer :: Server -> Bool -> Bool -> IO()
+printServer server historyInclude rmInclude = do
+    printf "\t%s\t" $ serverName server
+    when historyInclude $ printf "%s\t" $ historyUrlStr server
+    when rmInclude $ printf "%s\t" $ rmUrlStr server
+    return ()
+  where
+    historyUrlStr (Server _ _ (HistoryUrl url)) = url
+    rmUrlStr      (Server _ (AppUrl url) _) = url
+
+
+printServerLn :: Server -> Bool -> Bool -> IO()
+printServerLn server historyInclude rmInclude = do
+    printServer server historyInclude rmInclude
+    printf "\n"
+    return ()
+
+
 showAction :: Config -> ShowArgs -> IO ()
 showAction cfg sargs = do
-  let particularSet = showRM sargs || showHistory sargs
-  let historyInclude = (not particularSet) || showHistory sargs
-  let rmInclude = (not particularSet) || showRM sargs
-  _ <- forM servers' (\server -> do
-      printf "%s\t" $ serverName server
-      when historyInclude $ printf "%s\t" $ historyUrlStr server
-      when rmInclude $ printf "%s\t" $ rmUrlStr server
-      printf "\n"
-    )
+  printf "Default:\n"
+  printServerLn' defaultSrv'
+  printf "\nOthers:\n"
+  _ <- forM nonDefaultServers printServerLn'
+  printf "\n"
   return ()
   where
+      particularSet = showRM sargs || showHistory sargs
+      historyInclude = (not particularSet) || showHistory sargs
+      rmInclude = (not particularSet) || showRM sargs
+      printServerLn' server = printServerLn server historyInclude rmInclude
+      defaultSrv' = defaultServer cfg
       servers' = configServers cfg
-      historyUrlStr (Server _ _ (HistoryUrl url)) = url
-      rmUrlStr      (Server _ (AppUrl url) _) = url
+      nonDefaultServers = Map.filter (/= defaultSrv') servers'
