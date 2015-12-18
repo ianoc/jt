@@ -47,6 +47,7 @@ Library
       , Jt.App.Info
       , Jt.DetailedJob
       , Jt.Job
+      , Jt.Utils
       , Jt.App.Listing
       , Jt.Command.Details
       , Jt.History.Info

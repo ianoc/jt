@@ -7,7 +7,7 @@ module Jt.History.Info (
     ) where
 
 
-import Data.Aeson (FromJSON, ToJSON, eitherDecode)
+import Data.Aeson (FromJSON)
 import GHC.Generics (Generic)
 import qualified Jt.DetailedJob as DetailedJob
 import qualified Jt.Job as Job
@@ -15,9 +15,8 @@ import Jt.QueryParameters
 import Jt.Server(HistoryUrl(..))
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Int as Ints
-import qualified Data.String.Utils as StringUtils
 import qualified Jt.Net as Net
-
+import qualified Jt.Utils as Utils
 
 data JobInfoResponse = JobInfoResponse { job :: JobInfo } deriving (Show, Generic)
 data JobInfo = JobInfo {
@@ -49,39 +48,17 @@ data JobInfo = JobInfo {
 instance FromJSON JobInfoResponse
 instance FromJSON JobInfo
 
-applicationId :: String -> String
-applicationId jobId' = StringUtils.replace "job_" "application_" jobId'
-
-jobId :: String -> String
-jobId jobId' = StringUtils.replace "application_" "job_" jobId'
-
 addInfo :: String -> Either String a  -> Either String a
 addInfo extra (Left l) = Left (extra ++ l)
 addInfo extra o = o
 
-extractApps :: IO (Either String BL.ByteString) -> IO (Either String JobInfoResponse)
-extractApps ioData = do
-  e <- ioData
-  return (do
-      bs <- e
-      _ <- return $ print (BL.unpack bs)
-      eitherToError bs $ eitherDecode bs
-      )
-  where eitherToError _ (Right a) = Right a
-        eitherToError input (Left l) = Left ("Unable to decode response:\n" ++ (BL.unpack input) ++ "\n\nError: " ++ l)
-
-extractNoJob :: Either String JobInfo -> Either String (Maybe JobInfo)
-extractNoJob (Left "TooManyRedirects") = Right Nothing
-extractNoJob (Right a) = Right (Just a)
-extractNoJob (Left a) = Left a
-
 fetchDetailedJob :: String -> QueryParameters -> HistoryUrl -> IO (Either String (Maybe JobInfo))
 fetchDetailedJob jobId' params url = do
     let (HistoryUrl rawUrl) = url
-    let finalUrl = rawUrl ++ "/ws/v1/history/mapreduce/jobs/" ++ (jobId jobId')
-    jInfoEither <- extractApps $ Net.queryUrlWith params finalUrl
+    let finalUrl = rawUrl ++ "/ws/v1/history/mapreduce/jobs/" ++ (Utils.toJobId jobId')
+    jInfoEither <- Net.extractFromJson $ Net.queryUrlWith params finalUrl
     let resApps = fmap job jInfoEither
-    let withNoJob = extractNoJob resApps
+    let withNoJob = Net.redirectToNothing resApps
     let resApps = addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ withNoJob
     return resApps
 
@@ -97,7 +74,7 @@ jobInfoToJob id' (Just info) = Just $ DetailedJob.DetailedJob {
     DetailedJob.finishedTime = finishTime info,
     DetailedJob.flowId = flowIdM,
     DetailedJob.flowStepId = stepIdM,
-    DetailedJob.jobId = jobId id',
+    DetailedJob.jobId = Utils.toJobId id',
     DetailedJob.numMappers = mapsTotal info,
     DetailedJob.numReducers = reducesTotal info
   }

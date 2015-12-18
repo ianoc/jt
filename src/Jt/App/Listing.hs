@@ -12,8 +12,8 @@ import qualified Jt.Net as Net
 import qualified Jt.Job as Job
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Int as Ints
-import qualified Data.String.Utils as StringUtils
 import Jt.QueryParameters
+import qualified Jt.Utils as Utils
 
 data Apps = Apps { app :: [App] } deriving (Show, Generic)
 data AppsResponse = AppsResponse { apps :: Apps } deriving (Show, Generic)
@@ -30,10 +30,10 @@ instance FromJSON Apps
 instance FromJSON App
 
 applicationId :: App -> String
-applicationId (App appId _ _ _ _ _ _) = StringUtils.replace "job_" "application_" appId
+applicationId (App appId _ _ _ _ _ _) = Utils.toApplicationId appId
 
 jobId :: App -> String
-jobId (App appId _ _ _ _ _ _) = StringUtils.replace "application_" "job_" appId
+jobId (App appId _ _ _ _ _ _) = Utils.toJobId appId
 
 addInfo :: String -> IO (Either String a)  -> IO (Either String a)
 addInfo extra idata = do
