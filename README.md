@@ -9,9 +9,12 @@ tstA http://tstA.example.com:50030 http://tstA.example.com:8080
 
 Commands::
 
+## Show
 show [--history] [--resource-manager]
 List out what is the default hadoop cluster and other clusters in the system. Optionally just print the URL's for history or RM
 
+
+## Jobs
 jobs [-u|--user USER] [-c|--cluster CLUSTER] [-l|--limit LIMIT]
                    [-o|--history] [-a|--resource-manager] [-t|--tabs]
 
@@ -23,3 +26,10 @@ Name                                         User   State    JobId              
 MyFirstJob.1450391964.(2015-07-18).(3/3)     myUser FINISHED job_1450230361xxx_xxx 1450401485960
 ```
 
+## Details
+details [-c|--cluster CLUSTER] (-j|--job JOB) [-t|--tabs]
+
+The details command is to zoom in and get some info on a job. The `-j` arg here controls the job you are searching for. Both the AM and History servers will be searched for the job as necessary.
+
+Name                             User    State     JobId                   Mappers Reducers    StartedTime         FinishedTime
+MyFirstJob                       myUser SUCCEEDED job_145023036xxx3_65370   205     2000     2015-12-17 17:02:39 2015-12-17 17:19:17
