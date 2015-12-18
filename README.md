@@ -56,7 +56,8 @@ MyFirstJob      myUser SUCCEEDED job_145023036xxx3_65370   205     2000     2015
 
 
 ## Counters
-```Usage: jt counters [-c|--cluster CLUSTER] [-t|--tabs] JOB [-g|--group GROUP]
+```
+Usage: jt counters [-c|--cluster CLUSTER] [-t|--tabs] JOB [-g|--group GROUP]
                    [-n|--name NAME]
 ```
 
