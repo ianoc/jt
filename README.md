@@ -1,13 +1,29 @@
 # jt
-Intended to be a Haskell cmd line tool for querying info on a hadoop jobs
+Command-line Hadoop RM/History client.
+
+## Running
+You need to [install stack](http://docs.haskellstack.org/en/stable/README.html#how-to-install) the
+haskell build tool.
+```
+stack build
+stack install
+```
+This will install `jt` into your `~/.local/bin` which should be in your path after stack is
+installed.
+
+You can run without installing using stack:
+```
+stack exec jt command -- <non-stack options after the -->
+```
 
 
+## Configuration
 jt is configured by having a `.hadoop_cluster.conf` file in your tree, tracing back from the CWD, or from your $HOME.
 In here you should on each line give a short name to each of your hadoop clusters, then a link to your RM and history end points. e.g.:
 tstA http://tstA.example.com:50030 http://tstA.example.com:8080
 
 
-Commands::
+#Commands::
 
 ## Show
 ````Usage: jt show [--history] [--resource-manager]```
