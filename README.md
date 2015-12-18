@@ -31,5 +31,7 @@ MyFirstJob.1450391964.(2015-07-18).(3/3)     myUser FINISHED job_1450230361xxx_x
 
 The details command is to zoom in and get some info on a job. The `-j` arg here controls the job you are searching for. Both the AM and History servers will be searched for the job as necessary.
 
+```
 Name                             User    State     JobId                   Mappers Reducers    StartedTime         FinishedTime
 MyFirstJob                       myUser SUCCEEDED job_145023036xxx3_65370   205     2000     2015-12-17 17:02:39 2015-12-17 17:19:17
+```
