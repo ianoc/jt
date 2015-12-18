@@ -48,20 +48,6 @@ data JobInfo = JobInfo {
 instance FromJSON JobInfoResponse
 instance FromJSON JobInfo
 
-addInfo :: String -> Either String a  -> Either String a
-addInfo extra (Left l) = Left (extra ++ l)
-addInfo extra o = o
-
-fetchDetailedJob :: String -> QueryParameters -> HistoryUrl -> IO (Either String (Maybe JobInfo))
-fetchDetailedJob jobId' params url = do
-    let (HistoryUrl rawUrl) = url
-    let finalUrl = rawUrl ++ "/ws/v1/history/mapreduce/jobs/" ++ (Utils.toJobId jobId')
-    jInfoEither <- Net.extractFromJson $ Net.queryUrlWith params finalUrl
-    let resApps = fmap job jInfoEither
-    let withNoJob = Net.redirectToNothing resApps
-    let resApps = addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ withNoJob
-    return resApps
-
 
 jobInfoToJob :: String -> Maybe JobInfo -> Maybe DetailedJob.DetailedJob
 jobInfoToJob _ Nothing = Nothing
@@ -81,6 +67,11 @@ jobInfoToJob id' (Just info) = Just $ DetailedJob.DetailedJob {
   where
     (Job.JobNameElements flowIdM stepIdM nameM) = Job.parseName $ name info
 
+fetchDetailedJob :: String -> QueryParameters -> HistoryUrl -> IO (Either String (Maybe JobInfo))
+fetchDetailedJob jobId' queryParameters url = do
+    let (HistoryUrl rawUrl) = url
+    let finalUrl = rawUrl ++ "/ws/v1/history/mapreduce/jobs/" ++ (Utils.toJobId jobId')
+    Net.fetchJsonUrl queryParameters finalUrl job
 
 fetchJob :: String -> QueryParameters -> HistoryUrl -> IO (Either String (Maybe DetailedJob.DetailedJob))
 fetchJob jobId' queryParameters url = do
@@ -88,4 +79,7 @@ fetchJob jobId' queryParameters url = do
   return $ convertL e
   where
     convertL lst = fmap (jobInfoToJob jobId') lst
+
+
+
 

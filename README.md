@@ -32,9 +32,11 @@ List out what is the default hadoop cluster and other clusters in the system. Op
 
 ## Jobs
 ````Usage: jt jobs [-u|--user USER] [-c|--cluster CLUSTER] [-l|--limit LIMIT]
-                   [-o|--history] [-a|--resource-manager] [-t|--tabs]```
+               [-o|--history] [-a|--resource-manager] [-s|--state STATE]
+               [-t|--tabs]```
 
-List up to `LIMIT` jobs for optionally `USER` or all users from cluster `CLUSTER` or your default cluster. Its also possible to restrict it to the history or RM using the `-o` and `-a` flags respectively. Pretty printing of output is enabled by default. To use simple tables for consumption in other tooling pass in `-t`.
+List up to `LIMIT` jobs for optionally `USER` or all users from cluster `CLUSTER` or your default cluster. Its also possible to restrict it to the history or RM using the `-o` and `-a` flags respectively. You can filter to a particular state using the state arg.
+Pretty printing of output is enabled by default. To use simple tables for consumption in other tooling pass in `-t`.
 
 Example:
 ```bash

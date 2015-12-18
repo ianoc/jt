@@ -56,7 +56,7 @@ extractApps ioData = do
 
 fetchApps :: QueryParameters -> String -> IO (Either String [App])
 fetchApps params url = do
-    let finalUrl = url ++ "/ws/v1/cluster/apps?states=running,failed,finished"
+    let finalUrl = url ++ "/ws/v1/cluster/apps"
     maybeApps <- addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ extractApps $ Net.queryUrlWith params finalUrl
     let resApps = fmap app $ fmap apps maybeApps
     return resApps

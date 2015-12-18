@@ -32,7 +32,7 @@ data JobInfo = JobInfo {
     , reducesTotal :: Ints.Int32
     , reducesCompleted :: Ints.Int32
     , diagnostics :: String
-    , uberized :: String
+    , uberized :: Bool
     , mapsPending :: Ints.Int32
     , mapsRunning :: Ints.Int32
     , reducesPending :: Ints.Int32
@@ -52,22 +52,11 @@ instance FromJSON JobInfoResponse
 instance FromJSON JobInfo
 
 
-addInfo :: String -> Either String a  -> Either String a
-addInfo extra (Left l) = Left (extra ++ l)
-addInfo extra o = o
-
-
 fetchDetailedJob :: String -> QueryParameters -> AppUrl -> IO (Either String (Maybe JobInfo))
 fetchDetailedJob jobId' params url = do
     let (AppUrl rawUrl) = url
     let finalUrl = rawUrl ++ "/proxy/" ++ (Utils.toApplicationId jobId') ++ "/ws/v1/mapreduce/jobs/" ++ (Utils.toJobId jobId')
-    jInfoEither <- Net.extractFromJson $ Net.queryUrlWith params finalUrl
-    let resApps = fmap job jInfoEither
-    let withNoJob = Net.redirectToNothing resApps
-    let resApps' = addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ withNoJob
-    return resApps'
-
-
+    Net.fetchJsonUrl params finalUrl job
 
 jobInfoToJob :: String -> Maybe JobInfo -> Maybe DetailedJob.DetailedJob
 jobInfoToJob _ Nothing = Nothing
