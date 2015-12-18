@@ -1,9 +1,8 @@
-module Jt.Command.Job (
-  jobAction,
-  jobCommand
+module Jt.Command.Details (
+  detailsAction,
+  detailsCommand
 ) where
 
-import Data.Maybe(fromMaybe)
 import Jt
 import Jt.Command.Utils
 import Jt.Server
@@ -13,20 +12,20 @@ import qualified Jt.History.Info as HistoryInfo
 import qualified Jt.DetailedJob as DetailedJob
 import qualified Jt.QueryParameters as QP
 
-data JobArgs = JobArgs {  jobCluster :: String
+data JobArgs = JobArgs {  jobCluster :: Maybe String
                          , jobJobId :: String
                          , jobTabs :: Bool
                          }
 
-jobCommand :: Command
-jobCommand = Command { commandName = "job"
-                      , commandDesc = "job info"
+detailsCommand :: Command
+detailsCommand = Command { commandName = "details"
+                      , commandDesc = "details info on a job"
                       , commandParser = jobParser
-                      , commandAction = jobAction }
+                      , commandAction = detailsAction }
 
 jobParser :: Parser JobArgs
 jobParser = let
-  clusterP = strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from")
+  clusterP = optional(strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from"))
   jobP = strOption (long "job" <> short 'j' <> metavar "JOB" <> help "job to show info on")
   tabs = switch (long "tabs" <>
            short 't' <>
@@ -55,17 +54,13 @@ recoverWith existing generator = do
     fnE e
   where
     fnE (Just e) = return $ Just e
-    fnE Nothing  = do
-      _ <- print " Querying secondary"
-      generator
+    fnE Nothing  = generator
 
 printResults :: Config -> JobArgs -> IO ()
 printResults conf sargs = do
     let jobId' = jobJobId sargs
-    let maybeServer = cfgLookup (jobCluster sargs) conf
-    let server = fromMaybe (err ("Unable to find cluster: " ++ (jobCluster sargs))) maybeServer
+    let server = extractServer conf (jobCluster sargs)
     let queryParameters = QP.QueryParameters []
-
     let fetchFromApp = AppInfo.fetchJob jobId' queryParameters $ appUrl server
     let fetchFromHistory = HistoryInfo.fetchJob jobId' queryParameters $ historyUrl server
     let historyQueryWithError = fmap failOnLeft fetchFromHistory :: IO (Maybe DetailedJob.DetailedJob)
@@ -82,6 +77,6 @@ printResults conf sargs = do
     sequence_ (map putStrLn lineSummaries)
 
 
-jobAction :: Config -> JobArgs -> IO ()
-jobAction conf sargs = do
+detailsAction :: Config -> JobArgs -> IO ()
+detailsAction conf sargs = do
   printResults conf sargs

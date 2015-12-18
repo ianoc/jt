@@ -1,12 +1,16 @@
 module Jt.Command.Utils (
   tabColumnarize,
   evenColumnarize,
-  toLocalTimeString
+  toLocalTimeString,
+  extractServer
 ) where
 
 import Data.List(intercalate, transpose)
-import Data.Time.LocalTime(getCurrentTimeZone, utcToLocalTime)
+import Data.Maybe(fromMaybe)
 import Data.Time.Clock.POSIX(posixSecondsToUTCTime)
+import Data.Time.LocalTime(getCurrentTimeZone, utcToLocalTime)
+import Jt
+import Jt.Server(Server(..))
 import qualified Data.Int as Ints
 
 tabColumnarize :: [[String]] -> [String]
@@ -37,3 +41,6 @@ toLocalTimeString timestamp64 = fmap printOut tzIO
       printOut tz = show (utcToLocalTime tz time)
       time = posixSecondsToUTCTime (fromInteger (timestamp `div` 1000))
 
+extractServer :: Config -> Maybe String -> Server
+extractServer cfg                 (Just q) = fromMaybe (err ("Unable to find cluster: " ++ q)) $ cfgLookup q cfg
+extractServer (Config _ defaultV) Nothing  = defaultV

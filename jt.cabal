@@ -48,7 +48,7 @@ Library
       , Jt.DetailedJob
       , Jt.Job
       , Jt.App.Listing
-      , Jt.Command.Job
+      , Jt.Command.Details
       , Jt.History.Info
       , Jt.History.Listing
     GHC-Options: -O2 -Wall

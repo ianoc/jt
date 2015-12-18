@@ -12,7 +12,7 @@ module Jt (
     failOnNothing,
     cfgLookup,
     err,
-    Config
+    Config(..)
     ) where
 
 import Data.List.Split(splitOn)
@@ -69,10 +69,14 @@ readConfig = do
                                 "\"Name\" \"RM URL\" and \"History Url\" where these urls correspond to the RM and history urls of your clusters. One per line\n" <>
                                 "Example:\n" <>
                                 "tstA http://tstA.example.com:50030 http://tstA.example.com:8080\n")
-type Config = Map.Map String Server
+data Config = Config {
+  configServers :: Map.Map String Server,
+  def :: Server
+}
+
 
 cfgLookup :: String -> Config -> Maybe Server
-cfgLookup k m = Map.lookup k m
+cfgLookup k (Config m _) = Map.lookup k m
 
 
 data FailOnLeftException = FailOnLeftException String deriving (Show, Typeable)
@@ -96,9 +100,12 @@ instance Exception ForcedException
 err :: String -> a
 err msg = throw $ ForcedException msg
 
+data FailOnBadConfig = FailOnBadConfig String deriving (Show, Typeable)
+instance Exception FailOnBadConfig
 
-cfgFromServerList :: [Server] -> Map.Map String Server
-cfgFromServerList servers = Map.fromList pairList
+cfgFromServerList :: [Server] -> Config
+cfgFromServerList [] = throw $ FailOnBadConfig "Unable to parse any servers from config."
+cfgFromServerList servers@(x : _) = Config (Map.fromList pairList) x
   where pairList = fmap server2Pair servers
         server2Pair srv = (serverName srv, srv)
 

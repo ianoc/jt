@@ -25,11 +25,11 @@ showParser = let
   in ShowArgs <$> history <*> rm
 
 showAction :: Config -> ShowArgs -> IO ()
-showAction servers sargs = do
+showAction cfg sargs = do
   let particularSet = showRM sargs || showHistory sargs
   let historyInclude = (not particularSet) || showHistory sargs
   let rmInclude = (not particularSet) || showRM sargs
-  _ <- forM servers (\server -> do
+  _ <- forM servers' (\server -> do
       printf "%s\t" $ serverName server
       when historyInclude $ printf "%s\t" $ historyUrlStr server
       when rmInclude $ printf "%s\t" $ rmUrlStr server
@@ -37,5 +37,6 @@ showAction servers sargs = do
     )
   return ()
   where
+      servers' = configServers cfg
       historyUrlStr (Server _ _ (HistoryUrl url)) = url
       rmUrlStr      (Server _ (AppUrl url) _) = url

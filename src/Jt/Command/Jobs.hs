@@ -12,7 +12,7 @@ import qualified Jt.QueryParameters as QP
 import Jt.Command.Utils
 
 data JobArgs = JobArgs { jobUser :: Maybe String
-                         , jobCluster :: String
+                         , jobCluster :: Maybe String
                          , jobLimit :: Maybe Int
                          , showHistory :: Bool
                          , showRM :: Bool
@@ -27,7 +27,7 @@ jobsCommand = Command { commandName = "jobs"
 
 jobsParser :: Parser JobArgs
 jobsParser = let
-  clusterP = strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from")
+  clusterP = optional(strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from"))
   userP = optional(strOption (long "user" <> short 'u' <> metavar "USER" <> help "user to list jobs from"))
   limitP = optional(option auto (long "limit" <> short 'l' <> metavar "LIMIT" <> help "limit of jobs to return"))
   history = switch (long "history" <> short 'o' <> help "History: show the history url")
@@ -50,6 +50,7 @@ toLineSummary job = let
 headLine :: [String]
 headLine = ["Name", "User", "State", "JobId", "StartedTime"]
 
+
 printResults :: Config -> JobArgs -> IO ()
 printResults conf sargs = do
   let particularSet = showRM sargs || showHistory sargs
@@ -58,12 +59,14 @@ printResults conf sargs = do
 
   let userOption = fromMaybe QP.EmptyParameter $ fmap (\u -> (QP.toQp "user" u)) (jobUser sargs)
   let limitOption = fromMaybe QP.EmptyParameter $ fmap (\u -> (QP.toQp "limit" $ show u)) (jobLimit sargs)
+
   let maxLimit = fromMaybe 500 $ jobLimit sargs
-  let maybeServer = cfgLookup (jobCluster sargs) conf
-  let server = fromMaybe (err ("Unable to find cluster: " ++ (jobCluster sargs))) maybeServer
+  let server = extractServer conf (jobCluster sargs)
+
   let queryParameters = QP.QueryParameters [userOption, limitOption]
   historyJobs <- if historyInclude then Job.jobsWithOpts queryParameters $ historyUrl server else return $ Right []
   rmJobs <- if rmInclude then Job.jobsWithOpts queryParameters $ appUrl server else return $ Right []
+
   let jobEither = combineEither rmJobs historyJobs
   let jobLimited = fmap (\jobs' -> take maxLimit jobs') jobEither
   let jobs' = failOnLeft jobLimited
