@@ -1,10 +1,8 @@
 module Jt.Command.Jobs (
   jobsAction,
-  jobCommand
+  jobsCommand
 ) where
 
-import Data.List(intercalate, sort, transpose, length)
-import qualified Data.Map.Strict as Map
 import Jt
 import qualified Jt.Job as Job
 import Jt.Server
@@ -21,13 +19,14 @@ data JobArgs = JobArgs { jobUser :: Maybe String
                          , jobTabs :: Bool
                          }
 
-jobCommand :: Command
-jobCommand = Command { commandName = "jobs"
+jobsCommand :: Command
+jobsCommand = Command { commandName = "jobs"
                       , commandDesc = "List Jobs"
-                      , commandParser = jobParser
+                      , commandParser = jobsParser
                       , commandAction = jobsAction }
 
-jobParser = let
+jobsParser :: Parser JobArgs
+jobsParser = let
   clusterP = strOption (long "cluster" <> short 'c' <> metavar "CLUSTER" <> help "cluster to operate from")
   userP = optional(strOption (long "user" <> short 'u' <> metavar "USER" <> help "user to list jobs from"))
   limitP = optional(option auto (long "limit" <> short 'l' <> metavar "LIMIT" <> help "limit of jobs to return"))
@@ -66,9 +65,9 @@ printResults conf sargs = do
   historyJobs <- if historyInclude then Job.jobsWithOpts queryParameters $ historyUrl server else return $ Right []
   rmJobs <- if rmInclude then Job.jobsWithOpts queryParameters $ appUrl server else return $ Right []
   let jobEither = combineEither rmJobs historyJobs
-  let jobLimited = fmap (\jobs -> take maxLimit jobs) jobEither
-  let jobs = failOnLeft jobLimited
-  let summarizedJobs = fmap toLineSummary jobs
+  let jobLimited = fmap (\jobs' -> take maxLimit jobs') jobEither
+  let jobs' = failOnLeft jobLimited
+  let summarizedJobs = fmap toLineSummary jobs'
   let column = if (jobTabs sargs) then tabColumnarize else evenColumnarize
   let shortFn = return . column
   lineSummaries <- shortFn (headLine : summarizedJobs)

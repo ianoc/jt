@@ -1,26 +1,9 @@
--- {-# LANGUAGE OverloadedStrings #-}
--- {-# LANGUAGE TemplateHaskell #-}
-
--- module Jt.History (
---     fetchJobs,
---     Server(..)
---     ) where
-
--- data Server = HistoryServer { url :: String } | AppServer { url :: String } deriving (Show)
-
--- fetchJobs :: Server -> String -> IO (Maybe [Job])
--- fetchJobs (HistoryServer url) = fetchHistoryJobs
--- fetchJobs (AppServer url) = fetchHistoryJobs
-
-
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Jt.History (
+module Jt.History.Listing (
     fetchJobs
     ) where
-
-
 
 import Data.Aeson (FromJSON, ToJSON, decode)
 import GHC.Generics (Generic)
@@ -30,30 +13,6 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Int as Ints
 import qualified Data.String.Utils as StringUtils
 import Jt.QueryParameters
-
---   private[JobFetcher] case class JobHistoryResponse(jobs: HistoryJobList)
-
---   private[JobFetcher] case class HistoryJobList(job: List[HistoryJob])
--- case class HistoryJob(
---   startTime: Long,
---   finishTime: Long,
---   id: String,
---   name: String,
---   queue: String,
---   user: String,
---   state: String,
---   mapsTotal: Int,
---   mapsCompleted: Int,
---   reducesTotal: Int,
---   reducesCompleted: Int,
---   flowIdOpt: Option[String],
---   idxInFlowOpt: Option[Int],
---   flowSizeOpt: Option[Int],
---   clusterOpt: Option[Cluster]) extends BaseJob {
---   override def startedTime = startTime
---   override def finishedTime = finishTime
---   def url: String = s"""${cluster.jobHistory}/jobhistory/job/$jobId"""
--- }
 
 data Jobs = Jobs { job :: [HistoryJob] } deriving (Show, Generic)
 data HistoryResponse = HistoryResponse { jobs :: Jobs } deriving (Show, Generic)
@@ -97,7 +56,8 @@ extractApps ioData = do
 
 fetchApps :: QueryParameters -> String -> IO (Either String [HistoryJob])
 fetchApps params url = do
-    maybeApps <- addInfo ("Url Queried: " ++ url ++ "\n") $ extractApps $ Net.queryUrlWith params url
+    let finalUrl = url ++ "/ws/v1/history/mapreduce/jobs"
+    maybeApps <- addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ extractApps $ Net.queryUrlWith params finalUrl
     let resApps = fmap job $ fmap jobs maybeApps
     return resApps
 

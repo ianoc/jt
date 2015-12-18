@@ -9,15 +9,18 @@ import Control.Lens
 import Network.Wreq
 import qualified Data.ByteString.Lazy.Char8 as BL
 import Control.Exception as E
-import Network.HTTP.Client(HttpException)
+import Network.HTTP.Client(HttpException(..))
+import Network.HTTP.Types.Status
 import qualified Jt.QueryParameters as QP
 
 queryUrlWith :: QP.QueryParameters -> String -> IO(Either String BL.ByteString)
 queryUrlWith params' url = fmap handleErr runUrl
     where handleErr (Right a) = Right $ a ^. responseBody
+          handleErr (Left (StatusCodeException status302 _ _)) = Left $ "TooManyRedirects"
           handleErr (Left e) = Left $ show (e :: HttpException)
           options' = qParamsToOptions params'
-          runUrl = E.try (getWith options' url)
+          optionsWithoutRedirects' = options' & redirects .~ 0
+          runUrl = E.try (getWith optionsWithoutRedirects' url)
 
 qParamsToOptions :: QP.QueryParameters -> Options
 qParamsToOptions (QP.QueryParameters parameters) = merger defaults parameters

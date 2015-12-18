@@ -9,19 +9,16 @@ module Jt (
     Command(..),
     toAction,
     failOnLeft,
+    failOnNothing,
     cfgLookup,
     err,
     Config
     ) where
-import Data.Char(isSpace)
-import Data.List(concatMap)
+
 import Data.List.Split(splitOn)
 import Data.Text(unpack)
 import Data.Typeable
 import Options.Applicative
-import Options.Applicative.Types
-import Control.Monad.Except
-import Control.Monad.Reader
 import Filesystem.Path(parent)
 import qualified Turtle as T
 import Jt.Server
@@ -33,12 +30,12 @@ import Control.Exception
 -}
 
 findServer :: T.FilePath -> IO (Maybe T.FilePath)
-findServer init = do
-  let here = init T.</> ".hadoop_cluster.conf"
+findServer init' = do
+  let here = init' T.</> ".hadoop_cluster.conf"
   gitDir <- T.testfile here
   case gitDir of True  -> return (Just here)
-                 False -> let p = parent init
-                          in if p == init then return Nothing else findServer p
+                 False -> let p = parent init'
+                          in if p == init' then return Nothing else findServer p
 
 findServerFromRoots :: [T.FilePath] -> IO (Maybe T.FilePath)
 findServerFromRoots [] = return Nothing
@@ -81,9 +78,17 @@ cfgLookup k m = Map.lookup k m
 data FailOnLeftException = FailOnLeftException String deriving (Show, Typeable)
 instance Exception FailOnLeftException
 
-failOnLeft :: (Show a) => Either a b -> b
+
+failOnLeft :: Either String b -> b
 failOnLeft (Right e) = e
-failOnLeft (Left e)  = throw $ FailOnLeftException (show e)
+failOnLeft (Left str')  = throw $ FailOnLeftException str'
+
+data FailOnNothingException = FailOnNothingException String deriving (Show, Typeable)
+instance Exception FailOnNothingException
+
+failOnNothing :: String -> Maybe a -> a
+failOnNothing _      (Just e) = e
+failOnNothing errMsg Nothing  = throw $ FailOnNothingException errMsg
 
 data ForcedException = ForcedException String deriving (Show, Typeable)
 instance Exception ForcedException
@@ -110,10 +115,11 @@ data Command = forall a . Command {
 {-
   Prepares the subcommand
 -}
-subcom conf Command { commandName = name, commandDesc = desc, commandParser = parser, commandAction = act } = let
+subcom :: Config -> Command -> Mod CommandFields (IO ())
+subcom conf Command { commandName = name', commandDesc = desc, commandParser = parser, commandAction = act } = let
   toAct = act conf
   actionParser = helper <*> (toAct <$> parser)
-  in command name (info actionParser (progDesc desc <> header desc))
+  in command name' (info actionParser (progDesc desc <> header desc))
 
 {-
   Called by the main function to run one of the commands

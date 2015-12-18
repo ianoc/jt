@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Jt.App (
+module Jt.App.Listing (
     fetchJobs
     ) where
-
 
 
 import Data.Aeson (FromJSON, ToJSON, decode)
@@ -29,8 +28,6 @@ data App = App { id :: String,
 instance FromJSON AppsResponse
 instance FromJSON Apps
 instance FromJSON App
-
-
 
 applicationId :: App -> String
 applicationId (App appId _ _ _ _ _ _) = StringUtils.replace "job_" "application_" appId
@@ -59,7 +56,8 @@ extractApps ioData = do
 
 fetchApps :: QueryParameters -> String -> IO (Either String [App])
 fetchApps params url = do
-    maybeApps <- addInfo ("Url Queried: " ++ url ++ "\n") $ extractApps $ Net.queryUrlWith params url
+    let finalUrl = url ++ "/ws/v1/cluster/apps?states=running,failed,finished"
+    maybeApps <- addInfo ("Url Queried: " ++ finalUrl ++ "\n") $ extractApps $ Net.queryUrlWith params finalUrl
     let resApps = fmap app $ fmap apps maybeApps
     return resApps
 

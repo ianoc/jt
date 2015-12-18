@@ -6,8 +6,8 @@ module Jt.Server (
     ) where
 
 import qualified Jt.Job as Job
-import qualified Jt.App as App
-import qualified Jt.History as History
+import qualified Jt.History.Listing as History
+import qualified Jt.App.Listing as App
 import qualified Jt.QueryParameters as QP
 import Data.List(nub)
 
@@ -24,12 +24,12 @@ combineEither (Right _) (Left e2) = Left e2
 combineEither (Right r1) (Right r2) = Right $ r1 ++ r2
 
 instance Job.JobProvider AppUrl where
-  jobs (AppUrl url) = App.fetchJobs QP.defaultsQP (url ++ "/ws/v1/cluster/apps?states=running,failed,finished&limit=10")
-  jobsWithOpts opts (AppUrl url) = App.fetchJobs opts (url ++ "/ws/v1/cluster/apps?states=running,failed,finished")
+  jobs (AppUrl url) = App.fetchJobs QP.defaultsQP url
+  jobsWithOpts opts (AppUrl url) = App.fetchJobs opts url
 
 instance Job.JobProvider HistoryUrl where
-  jobs (HistoryUrl url) = History.fetchJobs QP.defaultsQP (url ++ "/ws/v1/history/mapreduce/jobs?limit=10")
-  jobsWithOpts opts (HistoryUrl url) = History.fetchJobs opts (url ++ "/ws/v1/history/mapreduce/jobs")
+  jobs (HistoryUrl url) = History.fetchJobs QP.defaultsQP url
+  jobsWithOpts opts (HistoryUrl url) = History.fetchJobs opts url
 
 
 instance Job.JobProvider Server where
